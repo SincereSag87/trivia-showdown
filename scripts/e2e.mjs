@@ -10,13 +10,12 @@ await request(host,'start');let state=await request(host,'resume',{token:created
 await assert.rejects(request(guest,'join',{code:created.code,nickname:'Late'}),/started/);
 for(let round=1;round<=10;round++){
   const revealPromise=waitState(host,v=>v.phase==='reveal'&&v.round===round);
-  await request(host,'answer',{round,choice:0});
-  if(round===1)await assert.rejects(request(host,'answer',{round,choice:1}),/locked/);
-  const before=await request(guest,'resume',{token:joined.token});assert.equal(before.reveal,null);
-  await request(guest,'answer',{round,choice:0});const reveal=await revealPromise;assert.equal(reveal.reveal.answers[reveal.selfId],0);
+  if(round===2){await Promise.all([request(host,'answer',{round,choice:0}),request(guest,'answer',{round,choice:0})]);}
+  else{await request(host,'answer',{round,choice:0});if(round===1)await assert.rejects(request(host,'answer',{round,choice:1}),/locked/);const before=await request(guest,'resume',{token:joined.token});assert.equal(before.reveal,null);await request(guest,'answer',{round,choice:0});}
+  const reveal=await revealPromise;assert.equal(reveal.reveal.answers[reveal.selfId],0);
   await request(host,'advance');
 }
 state=await request(host,'resume',{token:created.token});assert.equal(state.phase,'finished');assert.equal(state.winners.length,2);
 host.disconnect();const restored=client();await new Promise(r=>restored.on('connect',r));const restoredState=await request(restored,'resume',{token:created.token});assert.equal(restoredState.selfId,created.state.selfId);
 await request(restored,'lobby');await request(restored,'start');state=await request(restored,'resume',{token:created.token});assert.equal(state.phase,'question');assert.notEqual(state.question.id,firstQuestion);
-host.close();guest.close();restored.close();console.log('PASS: two independent clients completed 10 rounds, tied, restored host session, and started a fresh replay.');
+host.close();guest.close();restored.close();console.log('PASS: two independent clients completed 10 rounds (including simultaneous submissions), tied, restored host session, and started a fresh replay.');
